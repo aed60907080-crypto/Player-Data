@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة فريق كرة القدم - المطور</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --pitch-green: #2e7d32;
+            --pitch-line: rgba(255, 255, 255, 0.8);
+            --card-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            --primary-color: #0d6efd;
+            --captain-gold: #ffd600;
+        }
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 24px;
+        }
+        .card-header {
+            background-color: #fff;
+            border-bottom: 1px solid #eee;
+            padding: 1.25rem;
+            font-weight: bold;
+            border-radius: 15px 15px 0 0 !important;
+        }
+        /* ملعب التكتيك */
+        .pitch-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            aspect-ratio: 2/3;
+            background-color: var(--pitch-green);
+            margin: 0 auto;
+            border: 5px solid white;
+            border-radius: 15px;
+            overflow: hidden;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 25px 25px;
+        }
+        .pitch-line-center {
+            position: absolute;
+            top: 50%;
+            width: 100%;
+            height: 2px;
+            background: white;
+        }
+        .pitch-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90px;
+            height: 90px;
+            border: 2px solid white;
+            border-radius: 50%;
+        }
+        .player-spot {
+            position: absolute;
+            width: 55px;
+            height: 55px;
+            background: #fff;
+            color: #000;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 10px;
+            cursor: move;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            z-index: 10;
+            border: 2px solid #fff;
+            transition: background 0.3s;
+        }
+        .player-spot.is-captain {
+            background: var(--captain-gold);
+            border-color: #000;
+        }
+        .player-name-label {
+            position: absolute;
+            bottom: -25px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 1px 8px;
+            border-radius: 10px;
+            white-space: nowrap;
+            font-size: 11px;
+            pointer-events: none;
+        }
+        .player-selector {
+            position: absolute;
+            top: -35px;
+            width: 110px;
+            font-size: 10px;
+            padding: 2px;
+            border-radius: 5px;
+            background: white;
+        }
+        .player-number-circle {
+            background: #e3f2fd;
+            color: #0d6efd;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-left: 8px;
+            font-size: 0.85rem;
+            border: 1px solid #cfe2ff;
+        }
+        .captain-badge {
+            background-color: var(--captain-gold);
+            color: #000;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 5px;
+            border: 1px solid #ccac00;
+        }
+        .nav-pills .nav-link {
+            color: #555;
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin-bottom: 5px;
+            transition: 0.3s;
+        }
+        .nav-pills .nav-link.active {
+            background-color: var(--primary-color);
+        }
+        .badge-goals { background-color: #e3f2fd; color: #0d6efd; }
+        .badge-assists { background-color: #f1f8e9; color: #2e7d32; }
+        .badge-cards { background-color: #fff3e0; color: #ef6c00; }
+        
+        .highlight-form {
+            animation: highlight 1.5s ease-out;
+        }
+        @keyframes highlight {
+            0% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.4); }
+            50% { box-shadow: 0 0 0 15px rgba(13, 110, 253, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
+    <div class="container">
+        <a class="navbar-brand d-flex align-items-center" href="#">
+            <i data-lucide="shield-check" class="me-2 text-primary"></i>
+            مدير الفريق الرياضي
+        </a>
+    </div>
+</nav>
+
+<div class="container pb-5">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-lg-3">
+            <div class="d-grid gap-2 mb-4">
+                <button class="btn btn-primary btn-lg shadow-sm d-flex align-items-center justify-content-center py-3" onclick="focusPlayerForm()">
+                    <i data-lucide="user-plus" class="ms-2"></i> تسجيل لاعب جديد
+                </button>
+            </div>
+            
+            <div class="card p-2">
+                <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist">
+                    <button class="nav-link active d-flex align-items-center" id="players-tab" data-bs-toggle="pill" data-bs-target="#players-content">
+                        <i data-lucide="users" class="ms-2"></i> قائمة اللاعبين
+                    </button>
+                    <button class="nav-link d-flex align-items-center" id="schedule-tab" data-bs-toggle="pill" data-bs-target="#schedule-content">
+                        <i data-lucide="calendar" class="ms-2"></i> جدول المواعيد
+                    </button>
+                    <button class="nav-link d-flex align-items-center" id="tactics-tab" data-bs-toggle="pill" data-bs-target="#tactics-content" onclick="updateTacticsSelectors()">
+                        <i data-lucide="layout" class="ms-2"></i> الخطة والتكتيك
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-lg-9">
+            <div class="tab-content">
+                
+                <!-- Players Section -->
+                <div class="tab-pane fade show active" id="players-content">
+                    <div class="card" id="playerFormCard">
+                        <div class="card-header d-flex align-items-center">
+                            <i data-lucide="pen-tool" class="ms-2 text-primary"></i> 
+                            <span id="formTitle">بيانات اللاعب</span>
+                        </div>
+                        <div class="card-body p-4">
+                            <form id="playerForm" class="row g-3">
+                                <input type="hidden" id="editIndex" value="-1">
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-bold">اسم اللاعب</label>
+                                    <input type="text" id="playerName" class="form-control" placeholder="الاسم الكامل" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold">الرقم (#)</label>
+                                    <input type="number" id="playerNumber" class="form-control" placeholder="مثلاً: 10" min="1" max="99">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">رقم الهاتف (اختياري)</label>
+                                    <input type="tel" id="playerPhone" class="form-control" placeholder="05xxxxxxxx">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold text-primary">الأهداف</label>
+                                    <input type="number" id="playerGoals" class="form-control" value="0" min="0">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold text-success">التمريرات الحاسمة</label>
+                                    <input type="number" id="playerAssists" class="form-control" value="0" min="0">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold text-danger">البطاقات</label>
+                                    <input type="number" id="playerCards" class="form-control" value="0" min="0">
+                                </div>
+                                <div class="col-12 text-end mt-4">
+                                    <button type="button" id="cancelEditBtn" class="btn btn-outline-secondary px-4 me-2 d-none" onclick="resetPlayerForm()">إلغاء التعديل</button>
+                                    <button type="submit" id="savePlayerBtn" class="btn btn-primary px-5">
+                                        <i data-lucide="check-circle" class="ms-1"></i> حفظ البيانات
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span>إحصائيات وقائمة الفريق</span>
+                            <span class="badge bg-primary rounded-pill" id="playerCount">0 لاعبين</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr class="text-center">
+                                            <th class="text-start ps-4">اللاعب</th>
+                                            <th>الهاتف</th>
+                                            <th>الأهداف</th>
+                                            <th>التمريرات</th>
+                                            <th>البطاقات</th>
+                                            <th class="pe-4">التحكم</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="playerList"></tbody>
+                                </table>
+                            </div>
+                            <div id="noPlayersMsg" class="text-center py-5 d-none">
+                                <p class="text-muted">لا يوجد لاعبين مسجلين حالياً. ابدأ بإضافة لاعب!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Schedule Section -->
+                <div class="tab-pane fade" id="schedule-content">
+                    <div class="card">
+                        <div class="card-header">إضافة حدث جديد</div>
+                        <div class="card-body">
+                            <form id="scheduleForm" class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">النوع</label>
+                                    <select id="eventType" class="form-select">
+                                        <option value="تمرين">تمرين</option>
+                                        <option value="مباراة">مباراة</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">التاريخ والوقت</label>
+                                    <input type="datetime-local" id="eventDate" class="form-control" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small fw-bold">الموقع</label>
+                                    <input type="text" id="eventLocation" class="form-control" placeholder="الموقع" required>
+                                </div>
+                                <div class="col-12 text-end">
+                                    <button type="submit" class="btn btn-success px-4">إضافة للجدول</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">المواعيد القادمة</div>
+                        <div class="card-body" id="scheduleTimeline"></div>
+                    </div>
+                </div>
+
+                <!-- Tactics Section -->
+                <div class="tab-pane fade" id="tactics-content">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span>خطة اللعب (اسحب لتغيير المراكز)</span>
+                            <div class="text-muted small">اللون الأصفر يميز الكابتن</div>
+                        </div>
+                        <div class="card-body p-4 text-center">
+                            <div class="pitch-container" id="pitch">
+                                <div class="pitch-line-center"></div>
+                                <div class="pitch-circle"></div>
+                                <!-- Spots -->
+                                <div class="player-spot" id="p1" style="top: 85%; left: 45%;"><span>GK</span><select class="player-selector" onchange="updateLabel(this)"></select><div class="player-name-label">-</div></div>
+                                <div class="player-spot" id="p2" style="top: 65%; left: 20%;"><span>LB</span><select class="player-selector" onchange="updateLabel(this)"></select><div class="player-name-label">-</div></div>
+                                <div class="player-spot" id="p3" style="top: 65%; left: 70%;"><span>RB</span><select class="player-selector" onchange="updateLabel(this)"></select><div class="player-name-label">-</div></div>
+                                <div class="player-spot" id="p4" style="top: 45%; left: 45%;"><span>CM</span><select class="player-selector" onchange="updateLabel(this)"></select><div class="player-name-label">-</div></div>
+                                <div class="player-spot" id="p5" style="top: 25%; left: 15%;"><span>LW</span><select class="player-selector" onchange="updateLabel(this)"></select><div class="player-name-label">-</div></div>
+                                <div class="player-spot" id="p6" style="top: 25%; left: 75%;"><span>RW</span><select class="player-selector" onchange="updateLabel(this)"></select><div class="player-name-label">-</div></div>
+                                <div class="player-spot" id="p7" style="top: 10%; left: 45%;"><span>ST</span><select class="player-selector" onchange="updateLabel(this)"></select><div class="player-name-label">-</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    lucide.createIcons();
+
+    // Player Data Management
+    let players = JSON.parse(localStorage.getItem('team_players_v4')) || [];
+    const playerForm = document.getElementById('playerForm');
+    const playerList = document.getElementById('playerList');
+    const editIndexField = document.getElementById('editIndex');
+    const formTitle = document.getElementById('formTitle');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const noPlayersMsg = document.getElementById('noPlayersMsg');
+
+    function renderPlayers() {
+        playerList.innerHTML = '';
+        document.getElementById('playerCount').textContent = `${players.length} لاعبين`;
+        
+        if (players.length === 0) {
+            noPlayersMsg.classList.remove('d-none');
+        } else {
+            noPlayersMsg.classList.add('d-none');
+        }
+
+        // Sort players by number
+        const sortedPlayers = [...players].sort((a,b) => (parseInt(a.number) || 99) - (parseInt(b.number) || 99));
+
+        sortedPlayers.forEach((p, index) => {
+            const actualIndex = players.indexOf(p);
+            playerList.innerHTML += `
+                <tr class="text-center ${p.isCaptain ? 'table-warning' : ''}">
+                    <td class="ps-4 text-start">
+                        <div class="d-flex align-items-center">
+                            <span class="player-number-circle">${p.number || '--'}</span>
+                            <div class="d-flex flex-column">
+                                <span class="fw-bold">${p.name} ${p.isCaptain ? '<span class="captain-badge">C</span>' : ''}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td><small class="text-muted">${p.phone || '-'}</small></td>
+                    <td><span class="badge badge-goals px-3">${p.goals}</span></td>
+                    <td><span class="badge badge-assists px-3">${p.assists}</span></td>
+                    <td><span class="badge badge-cards px-3">${p.cards}</span></td>
+                    <td class="pe-4">
+                        <button class="btn btn-sm ${p.isCaptain ? 'btn-warning' : 'btn-outline-warning'} me-1 border-0" onclick="toggleCaptain(${actualIndex})" title="كابتن الفريق">
+                            <i data-lucide="star" style="width: 16px;"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary me-1 border-0" onclick="editPlayer(${actualIndex})" title="تعديل">
+                            <i data-lucide="edit-2" style="width: 16px;"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger border-0" onclick="deletePlayer(${actualIndex})" title="حذف">
+                            <i data-lucide="trash-2" style="width: 16px;"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        lucide.createIcons();
+        updateTacticsSelectors();
+    }
+
+    // Toggle Captain Logic
+    function toggleCaptain(index) {
+        // Only one captain allowed
+        const wasCaptain = players[index].isCaptain;
+        players.forEach(p => p.isCaptain = false);
+        players[index].isCaptain = !wasCaptain;
+        
+        localStorage.setItem('team_players_v4', JSON.stringify(players));
+        renderPlayers();
+    }
+
+    playerForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const idx = parseInt(editIndexField.value);
+        const player = {
+            name: document.getElementById('playerName').value,
+            number: document.getElementById('playerNumber').value,
+            phone: document.getElementById('playerPhone').value,
+            goals: parseInt(document.getElementById('playerGoals').value) || 0,
+            assists: parseInt(document.getElementById('playerAssists').value) || 0,
+            cards: parseInt(document.getElementById('playerCards').value) || 0,
+            isCaptain: idx > -1 ? players[idx].isCaptain : false
+        };
+
+        if (idx > -1) {
+            players[idx] = player;
+        } else {
+            players.push(player);
+        }
+
+        localStorage.setItem('team_players_v4', JSON.stringify(players));
+        resetPlayerForm();
+        renderPlayers();
+    });
+
+    function editPlayer(index) {
+        const p = players[index];
+        document.getElementById('playerName').value = p.name;
+        document.getElementById('playerNumber').value = p.number || '';
+        document.getElementById('playerPhone').value = p.phone || '';
+        document.getElementById('playerGoals').value = p.goals;
+        document.getElementById('playerAssists').value = p.assists;
+        document.getElementById('playerCards').value = p.cards;
+        
+        editIndexField.value = index;
+        formTitle.textContent = "تعديل بيانات اللاعب #" + (p.number || '');
+        cancelEditBtn.classList.remove('d-none');
+        focusPlayerForm();
+    }
+
+    function deletePlayer(index) {
+        if(confirm("هل تريد بالتأكيد حذف بيانات هذا اللاعب؟")) {
+            players.splice(index, 1);
+            localStorage.setItem('team_players_v4', JSON.stringify(players));
+            renderPlayers();
+        }
+    }
+
+    function resetPlayerForm() {
+        playerForm.reset();
+        editIndexField.value = "-1";
+        formTitle.textContent = "بيانات اللاعب";
+        cancelEditBtn.classList.add('d-none');
+    }
+
+    function focusPlayerForm() {
+        const card = document.getElementById('playerFormCard');
+        card.classList.remove('highlight-form');
+        void card.offsetWidth; 
+        card.classList.add('highlight-form');
+        document.getElementById('playerName').focus();
+        window.scrollTo({ top: card.offsetTop - 20, behavior: 'smooth' });
+    }
+
+    function updateTacticsSelectors() {
+        const selectors = document.querySelectorAll('.player-selector');
+        selectors.forEach(sel => {
+            const current = sel.value;
+            sel.innerHTML = '<option value="">اختر لاعب</option>';
+            players.forEach(p => {
+                const opt = document.createElement('option');
+                const label = p.number ? `#${p.number} - ${p.name}` : p.name;
+                opt.value = label;
+                opt.textContent = label + (p.isCaptain ? " (C)" : "");
+                opt.dataset.isCaptain = p.isCaptain;
+                if(label === current.replace(" (C)", "")) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            // Update the UI label immediately if a captain is selected
+            updateLabel(sel);
+        });
+    }
+
+    function updateLabel(sel) {
+        const selectedOption = sel.options[sel.selectedIndex];
+        const spot = sel.closest('.player-spot');
+        const nameLabel = sel.nextElementSibling;
+        
+        if (selectedOption && selectedOption.value) {
+            nameLabel.textContent = selectedOption.value + (selectedOption.dataset.isCaptain === "true" ? " (C)" : "");
+            
+            // Highlight spot if it's the captain
+            if (selectedOption.dataset.isCaptain === "true") {
+                spot.classList.add('is-captain');
+            } else {
+                spot.classList.remove('is-captain');
+            }
+        } else {
+            nameLabel.textContent = "-";
+            spot.classList.remove('is-captain');
+        }
+    }
+
+    // Schedule Management
+    let events = JSON.parse(localStorage.getItem('team_events_v4')) || [];
+    const scheduleForm = document.getElementById('scheduleForm');
+    const scheduleTimeline = document.getElementById('scheduleTimeline');
+
+    function renderEvents() {
+        scheduleTimeline.innerHTML = '';
+        if(events.length === 0) {
+            scheduleTimeline.innerHTML = '<p class="text-center text-muted py-3">لا توجد مواعيد مضافة</p>';
+            return;
+        }
+        events.sort((a,b) => new Date(a.date) - new Date(b.date));
+        events.forEach((ev, i) => {
+            const d = new Date(ev.date);
+            scheduleTimeline.innerHTML += `
+                <div class="d-flex align-items-center border-bottom py-3">
+                    <div class="bg-light p-2 rounded text-center me-3" style="min-width: 80px">
+                        <small class="d-block fw-bold">${d.toLocaleDateString('ar-SA', {month:'short', day:'numeric'})}</small>
+                        <small class="text-primary">${d.toLocaleTimeString('ar-SA', {hour:'2-digit', minute:'2-digit'})}</small>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-0 fw-bold">${ev.type}</h6>
+                        <small class="text-muted"><i data-lucide="map-pin" style="width:12px"></i> ${ev.location}</small>
+                    </div>
+                    <button class="btn btn-sm text-danger" onclick="deleteEvent(${i})"><i data-lucide="trash" style="width:16px"></i></button>
+                </div>
+            `;
+        });
+        lucide.createIcons();
+    }
+
+    scheduleForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        events.push({
+            type: document.getElementById('eventType').value,
+            date: document.getElementById('eventDate').value,
+            location: document.getElementById('eventLocation').value
+        });
+        localStorage.setItem('team_events_v4', JSON.stringify(events));
+        scheduleForm.reset();
+        renderEvents();
+    });
+
+    function deleteEvent(i) {
+        events.splice(i, 1);
+        localStorage.setItem('team_events_v4', JSON.stringify(events));
+        renderEvents();
+    }
+
+    // Draggable spots logic
+    document.querySelectorAll('.player-spot').forEach(spot => {
+        let isDragging = false, currentX, currentY, initialX, initialY, xOffset = 0, yOffset = 0;
+        spot.addEventListener('mousedown', dragStart);
+        spot.addEventListener('touchstart', dragStart, {passive: false});
+        window.addEventListener('mousemove', drag);
+        window.addEventListener('touchmove', drag, {passive: false});
+        window.addEventListener('mouseup', dragEnd);
+        window.addEventListener('touchend', dragEnd);
+
+        function dragStart(e) {
+            if (e.target.tagName === 'SELECT') return;
+            initialX = (e.type === "touchstart" ? e.touches[0].clientX : e.clientX) - xOffset;
+            initialY = (e.type === "touchstart" ? e.touches[0].clientY : e.clientY) - yOffset;
+            isDragging = true;
+        }
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                currentX = (e.type === "touchmove" ? e.touches[0].clientX : e.clientX) - initialX;
+                currentY = (e.type === "touchmove" ? e.touches[0].clientY : e.clientY) - initialY;
+                xOffset = currentX; yOffset = currentY;
+                spot.style.transform = `translate3d(${currentX}px, ${currentY}px, 0)`;
+            }
+        }
+        function dragEnd() {
+            initialX = currentX; initialY = currentY;
+            isDragging = false;
+        }
+    });
+
+    window.onload = () => {
+        renderPlayers();
+        renderEvents();
+    }
+</script>
+</body>
+</html>
